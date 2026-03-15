@@ -234,7 +234,7 @@ const httpServer = http.createServer((req, res) => {
   }
 
   // Serve static files from server-ui/
-  const staticDir = path.join(__dirname, '..', 'server-ui');
+  const staticDir = path.join(__dirname, 'server-ui');
   let filePath = path.join(staticDir, url.pathname === '/' ? 'index.html' : url.pathname);
   const ext = path.extname(filePath);
   const mime = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.json':'application/json' };
