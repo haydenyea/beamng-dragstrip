@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BeamNG Drag Strip — Admin Leaderboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Share+Tech+Mono&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0a0a0a; --surface:#111; --surface2:#181818; --surface3:#202020;
+    --border:#2a2a2a; --border2:#333;
+    --amber:#f5a623; --amber-dim:#a86f10; --amber-glow:rgba(245,166,35,0.12);
+    --red:#e23535; --green:#2ecc71;
+    --text:#f0ede6; --text-muted:#777; --text-dim:#3a3a3a;
+    --mono:'Share Tech Mono',monospace;
+    --display:'Barlow Condensed',sans-serif;
+    --body:'Barlow',sans-serif;
+  }
+  html, body { background:var(--bg); color:var(--text); font-family:var(--body); min-height:100vh; overflow-x:hidden; }
+  body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px); pointer-events:none; z-index:1000; }
+
+  /* HEADER */
+  header { display:flex; align-items:stretch; border-bottom:1px solid var(--border2); background:var(--surface); position:sticky; top:0; z-index:100; }
+  .haccent { width:6px; background:var(--amber); flex-shrink:0; }
+  .hinner { display:flex; align-items:center; justify-content:space-between; padding:0 2rem; flex:1; min-height:64px; gap:2rem; flex-wrap:wrap; }
+  .logo-title { font-family:var(--display); font-size:28px; font-weight:900; text-transform:uppercase; letter-spacing:.05em; color:var(--amber); }
+  .logo-sub { font-family:var(--mono); font-size:10px; color:var(--text-muted); letter-spacing:.2em; text-transform:uppercase; margin-top:2px; }
+  .hstats { display:flex; gap:2rem; }
+  .hstat { display:flex; flex-direction:column; align-items:center; }
+  .hstat-val { font-family:var(--mono); font-size:20px; color:var(--amber); }
+  .hstat-lbl { font-size:10px; text-transform:uppercase; letter-spacing:.15em; color:var(--text-muted); margin-top:2px; }
+  .ws-status { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.15em; }
+  .ws-dot { width:7px; height:7px; border-radius:50%; background:var(--red); transition:background .3s; }
+  .ws-dot.connected { background:var(--green); animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+  /* LAYOUT */
+  main { max-width:1400px; margin:0 auto; padding:2rem; display:grid; grid-template-columns:1fr 340px; gap:2rem; }
+  @media(max-width:1100px){ main{grid-template-columns:1fr} }
+
+  .section-label { font-family:var(--display); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3em; color:var(--amber); margin-bottom:1rem; display:flex; align-items:center; gap:8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* LIVE RUN BANNER */
+  .live-run-banner { background:var(--surface); border:1px solid var(--amber-dim); padding:1rem 1.5rem; margin-bottom:1.5rem; display:none; position:relative; overflow:hidden; }
+  .live-run-banner.active { display:block; }
+  .live-run-banner::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--amber); animation:scan 1.5s linear infinite; }
+  @keyframes scan { 0%{transform:scaleX(0);transform-origin:left} 50%{transform:scaleX(1);transform-origin:left} 51%{transform:scaleX(1);transform-origin:right} 100%{transform:scaleX(0);transform-origin:right} }
+  .lrb-top { display:flex; align-items:center; gap:1rem; margin-bottom:.75rem; }
+  .lrb-live { font-family:var(--mono); font-size:10px; color:var(--amber); text-transform:uppercase; letter-spacing:.2em; background:var(--amber-glow); border:1px solid var(--amber-dim); padding:3px 10px; }
+  .lrb-name { font-family:var(--display); font-size:18px; font-weight:700; text-transform:uppercase; }
+  .lrb-stats { display:flex; gap:2rem; }
+  .lrb-stat { display:flex; flex-direction:column; }
+  .lrb-val { font-family:var(--mono); font-size:28px; color:var(--amber); }
+  .lrb-unit { font-family:var(--mono); font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.15em; }
+
+  /* FILTER */
+  .filter-bar { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid var(--border); }
+  .filter-btn { font-family:var(--display); font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; padding:6px 16px; border:1px solid var(--border2); background:transparent; color:var(--text-muted); cursor:pointer; transition:all .15s; border-radius:2px; }
+  .filter-btn:hover { border-color:var(--amber-dim); color:var(--text); }
+  .filter-btn.active { background:var(--amber); border-color:var(--amber); color:#000; }
+
+  /* BOARD */
+  .board-wrap { background:var(--surface); border:1px solid var(--border); }
+  .board-head { display:grid; grid-template-columns:52px 1fr 130px 130px 120px 80px; padding:0 1.25rem; height:36px; align-items:center; background:var(--surface2); border-bottom:1px solid var(--border2); gap:1rem; }
+  .board-head span { font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.18em; color:var(--text-muted); cursor:pointer; user-select:none; }
+  .board-head span:hover { color:var(--amber); }
+  .board-head span.sorted { color:var(--amber); }
+
+  .board-row { display:grid; grid-template-columns:52px 1fr 130px 130px 120px 80px; padding:0 1.25rem; height:58px; align-items:center; border-bottom:1px solid var(--border); gap:1rem; transition:background .12s; position:relative; }
+  .board-row:last-child { border-bottom:none; }
+  .board-row:hover { background:var(--surface2); }
+  .board-row.rank-1 { background:rgba(245,166,35,.07); }
+  .board-row.rank-1::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--amber); }
+  .board-row.rank-2 { background:rgba(180,180,180,.04); }
+  .board-row.rank-3 { background:rgba(180,100,30,.05); }
+  .board-row.flash { animation:flashRow .6s ease; }
+  @keyframes flashRow { 0%{background:rgba(245,166,35,.3)} 100%{background:inherit} }
+  @keyframes rowIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+
+  .rank-num { font-family:var(--display); font-size:22px; font-weight:900; color:var(--text-dim); text-align:center; }
+  .rank-1 .rank-num { color:var(--amber); }
+  .rank-2 .rank-num { color:#aaa; }
+  .rank-3 .rank-num { color:#a07040; }
+  .car-cell { display:flex; flex-direction:column; gap:3px; overflow:hidden; }
+  .car-name { font-family:var(--display); font-size:17px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .car-driver { font-family:var(--mono); font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .time-cell { display:flex; flex-direction:column; gap:2px; }
+  .time-val { font-family:var(--mono); font-size:20px; }
+  .rank-1 .time-val { color:var(--amber); }
+  .time-unit { font-family:var(--mono); font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.15em; }
+  .speed-val { font-family:var(--mono); font-size:18px; }
+  .rank-1 .speed-val { color:var(--amber); }
+  .speed-bar-wrap { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:4px; }
+  .speed-bar { height:100%; background:var(--amber); }
+  .date-cell { font-family:var(--mono); font-size:11px; color:var(--text-muted); }
+  .del-btn { background:transparent; border:1px solid var(--border2); color:var(--text-muted); font-family:var(--mono); font-size:11px; padding:4px 10px; cursor:pointer; border-radius:2px; transition:all .15s; }
+  .del-btn:hover { border-color:var(--red); color:var(--red); }
+  .empty-msg { padding:3rem; text-align:center; color:var(--text-muted); font-family:var(--mono); font-size:13px; letter-spacing:.1em; display:none; }
+
+  /* FORM */
+  .form-card { background:var(--surface); border:1px solid var(--border); padding:1.5rem; position:sticky; top:80px; display:flex; flex-direction:column; gap:1.25rem; }
+  .form-title { font-family:var(--display); font-size:20px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; color:var(--amber); border-bottom:1px solid var(--border); padding-bottom:1rem; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.2em; color:var(--text-muted); }
+  .field input { background:var(--surface2); border:1px solid var(--border2); color:var(--text); font-family:var(--mono); font-size:14px; padding:10px 12px; outline:none; transition:border-color .15s; border-radius:2px; width:100%; }
+  .field input:focus { border-color:var(--amber); }
+  .field input::placeholder { color:var(--text-dim); }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+  .submit-btn { width:100%; padding:14px; background:var(--amber); color:#000; border:none; font-family:var(--display); font-size:16px; font-weight:900; text-transform:uppercase; letter-spacing:.15em; cursor:pointer; transition:background .15s,transform .1s; border-radius:2px; }
+  .submit-btn:hover { background:#ffc94d; }
+  .submit-btn:active { transform:scale(.98); }
+  .submit-btn:disabled { background:var(--border2); color:var(--text-muted); cursor:not-allowed; }
+  .msg-box { font-family:var(--mono); font-size:12px; text-align:center; padding:8px; border-radius:2px; display:none; }
+  .msg-box.ok { color:var(--green); background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); }
+  .msg-box.err { color:var(--red); background:rgba(226,53,53,.08); border:1px solid rgba(226,53,53,.2); }
+  .stat-card { background:var(--surface); border:1px solid var(--border); padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; }
+  .stat-label { font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.15em; color:var(--text-muted); }
+  .stat-val { font-family:var(--display); font-size:22px; font-weight:900; color:var(--amber); margin-top:2px; }
+  .side-col { display:flex; flex-direction:column; gap:1rem; }
+
+  /* WS CONFIG */
+  .ws-cfg { background:var(--surface2); border:1px solid var(--border); padding:.75rem 1rem; display:flex; align-items:center; gap:.75rem; font-family:var(--mono); font-size:12px; color:var(--text-muted); }
+  .ws-cfg input { background:transparent; border:none; color:var(--amber); font-family:var(--mono); font-size:12px; width:220px; outline:none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="haccent"></div>
+  <div class="hinner">
+    <div>
+      <div class="logo-title">Drag Strip ¼ Mile</div>
+      <div class="logo-sub">BeamNG Multiplayer — Admin Console</div>
+    </div>
+    <div class="hstats">
+      <div class="hstat"><span class="hstat-val" id="h-runs">0</span><span class="hstat-lbl">Total Runs</span></div>
+      <div class="hstat"><span class="hstat-val" id="h-cars">0</span><span class="hstat-lbl">Cars</span></div>
+      <div class="hstat"><span class="hstat-val" id="h-best">—</span><span class="hstat-lbl">Best ET</span></div>
+    </div>
+    <div class="ws-status" id="wsStatus">
+      <div class="ws-dot" id="wsDot"></div>
+      <span id="wsLabel">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div>
+    <div class="ws-cfg">
+      WS: <input id="wsUrl" value="" onchange="reconnect()" placeholder="wss://your-app.railway.app/ws">
+      <span id="wsInfo" style="margin-left:auto"></span>
+    </div>
+
+    <!-- Live run banner -->
+    <div class="live-run-banner" id="liveRunBanner">
+      <div class="lrb-top">
+        <span class="lrb-live">Live Run</span>
+        <span class="lrb-name" id="lrb-name">—</span>
+      </div>
+      <div class="lrb-stats">
+        <div class="lrb-stat">
+          <span class="lrb-val" id="lrb-speed">0.0</span>
+          <span class="lrb-unit">km/h</span>
+        </div>
+        <div class="lrb-stat">
+          <span class="lrb-val" id="lrb-et">0.000</span>
+          <span class="lrb-unit">elapsed</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:1.5rem">Quarter Mile Leaderboard</div>
+
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" onclick="setFilter('all')">All Cars</button>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board-head">
+        <span>Pos</span>
+        <span>Car / Driver</span>
+        <span class="sorted" onclick="setSort('time')">Best ET ▲</span>
+        <span onclick="setSort('speed')">Trap Speed</span>
+        <span>Date</span>
+        <span>Del</span>
+      </div>
+      <div id="boardBody"></div>
+      <div class="empty-msg" id="emptyMsg">No runs yet. Log the first run →</div>
+    </div>
+  </div>
+
+  <div class="side-col">
+    <div class="form-card">
+      <div class="form-title">Log a Run</div>
+      <div class="field"><label>Driver Name</label><input id="f-driver" placeholder="e.g. GhostDrifter99" maxlength="28"></div>
+      <div class="field"><label>Car Model</label><input id="f-car" placeholder="e.g. ETK 800 Series" maxlength="40"></div>
+      <div class="two-col">
+        <div class="field"><label>ET (seconds)</label><input type="number" id="f-time" placeholder="9.472" step="0.001" min="0"></div>
+        <div class="field"><label>Trap Speed (km/h)</label><input type="number" id="f-speed" placeholder="241.0" step="0.1" min="0"></div>
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="submitRun()">LOG RUN</button>
+      <div class="msg-box" id="msgBox"></div>
+    </div>
+
+    <div class="stat-card"><div><div class="stat-label">Fastest Car</div><div class="stat-val" id="s-car">—</div></div></div>
+    <div class="stat-card"><div><div class="stat-label">Top Trap Speed</div><div class="stat-val" id="s-speed">—</div></div></div>
+    <div class="stat-card"><div><div class="stat-label">Cars Competing</div><div class="stat-val" id="s-count">0</div></div></div>
+  </div>
+</main>
+
+<script>
+let runs = [], ws = null, sortKey = 'time', sortDir = 1, activeFilter = 'all';
+let liveTimeout = null;
+
+function reconnect() {
+  if (ws) ws.close();
+  const url = document.getElementById('wsUrl').value.trim();
+  connect(url);
+}
+
+function connect(url) {
+  const dot = document.getElementById('wsDot');
+  const lbl = document.getElementById('wsLabel');
+  lbl.textContent = 'Connecting…';
+  dot.classList.remove('connected');
+
+  try { ws = new WebSocket(url); } catch(e) { lbl.textContent = 'Invalid URL'; return; }
+
+  ws.onopen = () => {
+    dot.classList.add('connected');
+    lbl.textContent = 'Connected';
+    document.getElementById('submitBtn').disabled = false;
+  };
+
+  ws.onclose = () => {
+    dot.classList.remove('connected');
+    lbl.textContent = 'Disconnected — retrying…';
+    document.getElementById('submitBtn').disabled = true;
+    setTimeout(() => connect(document.getElementById('wsUrl').value.trim()), 3000);
+  };
+
+  ws.onerror = () => { lbl.textContent = 'Error'; };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    switch(msg.type) {
+      case 'init':
+        runs = msg.runs;
+        renderAll();
+        break;
+      case 'run_update':
+        runs = msg.runs;
+        renderAll();
+        flashRow(msg.run.carKey);
+        showMsg(msg.isRecord ? '🏁 New record!' : 'Run logged.', 'ok');
+        break;
+      case 'run_accepted':
+        runs = runs.filter(r => r.carKey !== msg.run.carKey);
+        runs.push(msg.run);
+        renderAll();
+        showMsg(msg.isRecord ? '🏁 New record!' : 'Run logged!', 'ok');
+        clearForm();
+        break;
+      case 'run_rejected':
+        showMsg(msg.text, 'err');
+        break;
+      case 'run_deleted':
+        runs = msg.runs;
+        renderAll();
+        break;
+      case 'run_start':
+        document.getElementById('lrb-name').textContent = `${msg.driver} — ${msg.car}`;
+        document.getElementById('lrb-speed').textContent = '0.0';
+        document.getElementById('lrb-et').textContent = '0.000';
+        document.getElementById('liveRunBanner').classList.add('active');
+        break;
+      case 'telemetry':
+        document.getElementById('lrb-speed').textContent = msg.speed.toFixed(1);
+        document.getElementById('lrb-et').textContent = msg.elapsed.toFixed(3);
+        clearTimeout(liveTimeout);
+        liveTimeout = setTimeout(() => document.getElementById('liveRunBanner').classList.remove('active'), 5000);
+        break;
+    }
+  };
+}
+
+function submitRun() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const driver = document.getElementById('f-driver').value.trim();
+  const car    = document.getElementById('f-car').value.trim();
+  const time   = parseFloat(document.getElementById('f-time').value);
+  const speed  = parseFloat(document.getElementById('f-speed').value);
+  if (!driver || !car || isNaN(time) || isNaN(speed) || time <= 0 || speed <= 0) {
+    showMsg('Fill in all fields correctly.', 'err'); return;
+  }
+  ws.send(JSON.stringify({ type: 'submit_run', driver, car, time, speed }));
+}
+
+function deleteRun(carKey) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!confirm('Delete this car\'s record?')) return;
+  fetch(`/runs/${encodeURIComponent(carKey)}`, { method: 'DELETE' });
+}
+
+function setSort(key) {
+  sortDir = sortKey === key ? sortDir * -1 : 1;
+  sortKey = key;
+  document.querySelectorAll('.board-head span').forEach(s => s.classList.remove('sorted'));
+  const idx = key === 'time' ? 2 : 3;
+  const spans = document.querySelectorAll('.board-head span');
+  spans[idx].classList.add('sorted');
+  spans[idx].textContent = (key === 'time' ? 'Best ET' : 'Trap Speed') + (sortDir === 1 ? ' ▲' : ' ▼');
+  renderAll();
+}
+
+function setFilter(f) { activeFilter = f; renderAll(); }
+
+function flashRow(carKey) {
+  setTimeout(() => {
+    const rows = document.querySelectorAll('.board-row');
+    rows.forEach(r => { if (r.dataset.key === carKey) { r.classList.add('flash'); setTimeout(() => r.classList.remove('flash'), 700); } });
+  }, 100);
+}
+
+function showMsg(text, type) {
+  const b = document.getElementById('msgBox');
+  b.textContent = text;
+  b.className = 'msg-box ' + type;
+  b.style.display = 'block';
+  setTimeout(() => { b.style.display = 'none'; }, 3000);
+}
+
+function clearForm() {
+  ['f-driver','f-car','f-time','f-speed'].forEach(id => document.getElementById(id).value = '');
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderAll() {
+  renderFilters();
+  renderBoard();
+  renderStats();
+}
+
+function renderFilters() {
+  const bar = document.getElementById('filterBar');
+  const cars = [...new Set(runs.map(r => r.car))].sort();
+  bar.innerHTML = `<button class="filter-btn ${activeFilter==='all'?'active':''}" onclick="setFilter('all')">All Cars</button>`;
+  cars.forEach(c => {
+    const a = activeFilter === c.toLowerCase() ? 'active' : '';
+    bar.innerHTML += `<button class="filter-btn ${a}" onclick="setFilter('${c.toLowerCase().replace(/'/g,"\\'")}')">${esc(c)}</button>`;
+  });
+}
+
+function renderBoard() {
+  const body = document.getElementById('boardBody');
+  const empty = document.getElementById('emptyMsg');
+  let data = activeFilter === 'all' ? [...runs] : runs.filter(r => r.carKey === activeFilter);
+  data.sort((a,b) => (sortKey==='time' ? a.time-b.time : b.speed-a.speed) * sortDir);
+  if (!data.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const maxSpd = Math.max(...runs.map(r => r.speed), 1);
+  body.innerHTML = data.map((r,i) => {
+    const pos = i+1;
+    const rc = pos===1?'rank-1':pos===2?'rank-2':pos===3?'rank-3':'';
+    const bar = Math.round(r.speed/maxSpd*100);
+    return `<div class="board-row ${rc}" data-key="${r.carKey}" style="animation:rowIn .25s ease ${i*.04}s both">
+      <div class="rank-num">${pos}</div>
+      <div class="car-cell"><span class="car-name">${esc(r.car)}</span><span class="car-driver">${esc(r.driver)}</span></div>
+      <div class="time-cell"><span class="time-val">${r.time.toFixed(3)}</span><span class="time-unit">seconds</span></div>
+      <div class="time-cell"><span class="speed-val">${r.speed.toFixed(1)} km/h</span><div class="speed-bar-wrap"><div class="speed-bar" style="width:${bar}%"></div></div></div>
+      <div class="date-cell">${r.date}</div>
+      <div><button class="del-btn" onclick="deleteRun('${r.carKey}')">DEL</button></div>
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  document.getElementById('h-runs').textContent = runs.length;
+  document.getElementById('h-cars').textContent = new Set(runs.map(r=>r.carKey)).size;
+  const best = runs.length ? runs.reduce((a,b)=>a.time<b.time?a:b) : null;
+  const topSpd = runs.length ? runs.reduce((a,b)=>a.speed>b.speed?a:b) : null;
+  document.getElementById('h-best').textContent = best ? best.time.toFixed(3)+'s' : '—';
+  document.getElementById('s-car').textContent = best ? best.car : '—';
+  document.getElementById('s-speed').textContent = topSpd ? topSpd.speed.toFixed(1)+' km/h' : '—';
+  document.getElementById('s-count').textContent = new Set(runs.map(r=>r.carKey)).size;
+}
+
+// Enter to submit
+['f-driver','f-car','f-time','f-speed'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => { if(e.key==='Enter') submitRun(); });
+});
+
+// Auto-detect WebSocket URL from current page (works on hosting platforms + local)
+function getDefaultWsUrl() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${location.host}/ws`;
+}
+
+connect(getDefaultWsUrl());
+document.getElementById('wsUrl').value = getDefaultWsUrl();
+</script>
+</body>
+</html>
